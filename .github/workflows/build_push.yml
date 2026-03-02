@@ -44,8 +44,11 @@ jobs:
       - name: Build Jar
         env:
           ProductBuildType: "Preview"
+          # زيادة ذاكرة الجافا للنظام ككل
+          _JAVA_OPTIONS: "-Xmx4g"
         working-directory: master
-        run: ./gradlew :server:shadowJar --stacktrace
+        # إضافة إعدادات الذاكرة لـ Gradle ولـ Kotlin Daemon مباشرة
+        run: ./gradlew :server:shadowJar --stacktrace -Dorg.gradle.jvmargs="-Xmx4g" -Dkotlin.daemon.jvmargs="-Xmx4g"
 
       - name: Upload Jar
         uses: actions/upload-artifact@v4
@@ -56,7 +59,7 @@ jobs:
   jlink:
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false # هذا السطر يمنع إلغاء كل الوظائف إذا فشلت واحدة (مثل الماك)
+      fail-fast: false 
       matrix:
         include:
           - os: ubuntu-latest
@@ -79,10 +82,9 @@ jobs:
           name: ${{ matrix.name }}-jre
           path: suwa
 
-  # ملاحظة: قمت بتقليل الوظائف هنا لتركز فقط على التأكد من سلامة الـ Build والـ Regex
   check_regex_success:
     name: Final Check
-    needs: [build] # تعتمد فقط على الـ Build الأساسي
+    needs: [build] 
     runs-on: ubuntu-latest
     steps:
       - name: Status
