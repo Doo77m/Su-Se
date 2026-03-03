@@ -271,18 +271,10 @@ class ServerConfig(
         privacySafe = false,
         defaultValue = emptyList(),
         itemValidator = { url ->
-            if (url.matches(repoMatchRegex)) {
-                null
-            } else {
-                "Invalid repository URL format"
-            }
+            null
         },
         itemToValidValue = { url ->
-            if (url.matches(repoMatchRegex)) {
-                url
-            } else {
-                null
-            }
+            url
         },
         typeInfo =
             SettingsRegistry.PartialTypeInfo(
