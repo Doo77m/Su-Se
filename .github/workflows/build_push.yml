@@ -16,7 +16,6 @@ jobs:
     steps:
       - name: Clone repo
         uses: actions/checkout@v4
-
       - name: Validate Gradle Wrapper
         uses: gradle/actions/wrapper-validation@v4
 
@@ -31,43 +30,40 @@ jobs:
           ref: master
           path: master
           fetch-depth: 0
-
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
           java-version: 21
           distribution: 'zulu'
-
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
-
       - name: Build Jar
         env:
           ProductBuildType: "Preview"
-          # زيادة ذاكرة الجافا للنظام ككل
           _JAVA_OPTIONS: "-Xmx4g"
         working-directory: master
-        # إضافة إعدادات الذاكرة لـ Gradle ولـ Kotlin Daemon مباشرة
         run: ./gradlew :server:shadowJar --stacktrace -Dorg.gradle.jvmargs="-Xmx4g" -Dkotlin.daemon.jvmargs="-Xmx4g"
-
       - name: Upload Jar
         uses: actions/upload-artifact@v4
         with:
           name: jar
           path: master/server/build/*.jar
+      - name: Upload icons
+        uses: actions/upload-artifact@v4
+        with:
+          name: icon
+          path: master/server/src/main/resources/icon
+      - name: Tar scripts
+        run: tar -cvzf scripts.tar.gz -C master/ scripts/
+      - name: Upload scripts
+        uses: actions/upload-artifact@v4
+        with:
+          name: scripts
+          path: scripts.tar.gz
 
   jlink:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false 
-      matrix:
-        include:
-          - os: ubuntu-latest
-            name: linux-x64
-          - os: windows-latest
-            name: windows-x64
-          - os: macos-latest
-            name: macOS-arm64
+    runs-on: windows-latest # بناء JRE الويندوز يتطلب بيئة ويندوز لعمل MSI لاحقاً
+    name: Jlink Windows
     steps:
       - name: Set up JDK
         uses: actions/setup-java@v4
@@ -79,13 +75,42 @@ jobs:
       - name: Upload JRE package
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.name }}-jre
+          name: windows-x64-jre
           path: suwa
 
-  check_regex_success:
-    name: Final Check
-    needs: [build] 
+  bundle_windows:
+    name: Create Windows MSI
+    needs: [build, jlink]
     runs-on: ubuntu-latest
     steps:
-      - name: Status
-        run: echo "إذا وصلت هنا بنجاح، فهذا يعني أن تعديل الـ Regex والـ localhost في الكود سليم تماماً."
+      - name: Download Jar
+        uses: actions/download-artifact@v4
+        with:
+          name: jar
+          path: server/build
+      - name: Download JRE
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-x64-jre
+          path: jre
+      - name: Download icons
+        uses: actions/download-artifact@v4
+        with:
+          name: icon
+          path: server/src/main/resources/icon
+      - name: Download scripts
+        uses: actions/download-artifact@v4
+        with:
+          name: scripts
+      - name: Bundle MSI
+        run: |
+          mkdir upload
+          tar -xvpf scripts.tar.gz
+          chmod +x scripts/bundler.sh
+          # تشغيل السكربت لبناء نسخة الويندوز فقط
+          ./scripts/bundler.sh -o upload/ windows-x64
+      - name: Upload MSI Result
+        uses: actions/upload-artifact@v4
+        with:
+          name: Suwayomi-Windows-MSI
+          path: upload/*
